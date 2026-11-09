@@ -32,13 +32,13 @@ function tampil(){const g=isi[0]||"?";$("st").textContent=g.toUpperCase();
 async function baca(){
   try{const r=await fetch(API+"?t="+Date.now(),{headers:{Accept:"application/vnd.github+json"}});
     const j=await r.json();sha=j.sha;
-    isi=atob(j.content.replace(/\\n/g,"")).split("\\n").map(s=>s.trim()).filter(Boolean);tampil();}
+    isi=atob(j.content.replace(/\n/g,"")).split("\n").map(s=>s.trim()).filter(Boolean);tampil();}
   catch(e){$("st").textContent="tidak terbaca"}}
 async function simpan(baru,pesan){
   const t=$("tk").value.trim();if(!t){$("pesan").textContent="Isi token dulu.";return}
   localStorage.setItem("tk",t);$("pesan").textContent="Mengirim...";
   await baca();
-  const teks=baru.join("\\n")+"\\n";
+  const teks=baru.join("\n")+"\n";
   const r=await fetch(API,{method:"PUT",headers:{Authorization:"Bearer "+t,Accept:"application/vnd.github+json"},
     body:JSON.stringify({message:pesan,content:btoa(unescape(encodeURIComponent(teks))),sha})});
   $("pesan").textContent=r.ok?"Berhasil.":"Gagal ("+r.status+"). Periksa token.";
