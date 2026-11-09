@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="id"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Catatan</title>
+<style>
+body{font-family:system-ui,sans-serif;margin:0;padding:24px;background:#f6f6f6;color:#222}
+.k{max-width:420px;margin:0 auto;background:#fff;border-radius:16px;padding:20px;box-shadow:0 1px 6px #0002}
+button{width:100%;padding:14px;margin-top:10px;font-size:16px;border:0;border-radius:12px;color:#fff}
+#mati{background:#c62828}#aktif{background:#1b7f4b}
+input{width:100%;box-sizing:border-box;padding:10px;font-size:14px;margin-top:6px}
+.s{font-size:22px;font-weight:700;margin:8px 0}
+small{color:#666}
+</style></head><body><div class="k">
+<small>Status sekarang</small><div class="s" id="st">memuat...</div>
+<button id="mati">Matikan (samarkan aplikasi)</button>
+<button id="aktif">Nyalakan kembali</button>
+<p><small>Token GitHub (hanya akses repo ini, izin Contents: Read and write). Disimpan di browser ini saja.</small>
+<input id="tk" type="password" placeholder="github_pat_..."></p>
+<div id="pesan"></div>
+</div>
+<script>
+const R="Azizi07/catatan-umum",F="status.txt",API=`https://api.github.com/repos/${R}/contents/${F}`;
+const $=i=>document.getElementById(i);
+$("tk").value=localStorage.getItem("tk")||"";
+async function baca(){
+  try{const r=await fetch(API+"?t="+Date.now(),{headers:{Accept:"application/vnd.github+json"}});
+  const j=await r.json();$("st").textContent=atob(j.content.replace(/\n/g,"")).trim().toUpperCase();return j.sha}
+  catch(e){$("st").textContent="tidak terbaca"}}
+async function ubah(v){
+  const t=$("tk").value.trim();if(!t){$("pesan").textContent="Isi token dulu.";return}
+  localStorage.setItem("tk",t);$("pesan").textContent="Mengirim...";
+  const sha=await baca();
+  const r=await fetch(API,{method:"PUT",headers:{Authorization:"Bearer "+t,Accept:"application/vnd.github+json"},
+    body:JSON.stringify({message:"status "+v,content:btoa(v),sha})});
+  $("pesan").textContent=r.ok?"Berhasil: "+v:"Gagal ("+r.status+"). Periksa token.";baca()}
+$("mati").onclick=()=>ubah("mati");$("aktif").onclick=()=>ubah("aktif");baca();
+</script></body></html>
