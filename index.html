@@ -3,51 +3,99 @@
 <title>Catatan</title>
 <style>
 body{font-family:system-ui,sans-serif;margin:0;padding:24px;background:#f6f6f6;color:#222}
-.k{max-width:420px;margin:0 auto;background:#fff;border-radius:16px;padding:20px;box-shadow:0 1px 6px #0002}
+.k{max-width:420px;margin:0 auto 16px;background:#fff;border-radius:16px;padding:20px;box-shadow:0 1px 6px #0002}
 button{width:100%;padding:12px;margin-top:8px;font-size:15px;border:0;border-radius:12px;color:#fff}
 .m{background:#c62828}.a{background:#1b7f4b}.n{background:#555}
 input{width:100%;box-sizing:border-box;padding:10px;font-size:14px;margin-top:6px}
 .s{font-size:22px;font-weight:700;margin:8px 0}
-small{color:#666}ul{padding-left:18px}
-</style></head><body><div class="k">
+small{color:#666}ul{padding-left:0;list-style:none;margin:6px 0}
+li{display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid #eee}
+li button{width:auto;padding:4px 10px;margin:0;font-size:12px}
+h2{font-size:14px;margin:0 0 4px;color:#444}
+</style></head><body>
+
+<div class="k">
 <small>Status semua perangkat</small><div class="s" id="st">memuat...</div>
-<small>Perangkat yang dimatikan</small><ul id="daftar"></ul>
+<small>Nama akun yang dimatikan</small><ul id="daftar"></ul>
 <button class="m" id="matiAll">Matikan semua</button>
 <button class="a" id="aktifAll">Nyalakan semua</button>
-<p><small>Nama perangkat (sama dengan nama akun di aplikasi)</small></p>
-<input id="nm" placeholder="Nama akun">
-<button class="m" id="matiNm">Matikan perangkat ini</button>
-<button class="n" id="aktifNm">Nyalakan perangkat ini</button>
-<p><small>Token GitHub (akses repo ini, Contents: Read and write). Disimpan di browser ini saja.</small>
-<input id="tk" type="password" placeholder="github_pat_..."></p>
+<p><small>Nama akun (sama persis dengan nama akun di aplikasi)</small></p>
+<input id="nm" list="rosterList" placeholder="Nama akun">
+<datalist id="rosterList"></datalist>
+<button class="m" id="matiNm">Matikan akun ini</button>
+<button class="n" id="aktifNm">Nyalakan akun ini</button>
+</div>
+
+<div class="k">
+<h2>Daftar pengguna (catatan pribadi, tidak dibaca aplikasi)</h2>
+<small>Diisi manual — bukan isian otomatis, supaya tidak perlu token tulis ditanam di aplikasi.</small>
+<ul id="roster"></ul>
+<input id="rnm" placeholder="Nama akun baru">
+<button class="n" id="rTambah">Tambah ke daftar</button>
+</div>
+
+<div class="k">
+<small>Token GitHub (akses repo ini, Contents: Read and write). Disimpan di browser ini saja.</small>
+<input id="tk" type="password" placeholder="github_pat_...">
 <div id="pesan"></div>
 </div>
+
 <script>
-const R="Azizi07/catatan-umum",F="status.txt",API=`https://api.github.com/repos/${R}/contents/${F}`;
+const R="Azizi07/catatan-umum",API=f=>`https://api.github.com/repos/${R}/contents/${f}`;
 const $=i=>document.getElementById(i);
 $("tk").value=localStorage.getItem("tk")||"";
-let sha="",isi=[];
-function tampil(){const g=isi[0]||"?";$("st").textContent=g.toUpperCase();
-  $("daftar").innerHTML="";isi.slice(1).forEach(n=>{const li=document.createElement("li");li.textContent=n;$("daftar").appendChild(li)});}
+
+let shaStatus="",isi=[],shaRoster="",roster=[];
+
+function tampilStatus(){
+  $("st").textContent=(isi[0]||"?").toUpperCase();
+  $("daftar").innerHTML="";
+  isi.slice(1).forEach(n=>{const li=document.createElement("li");li.textContent=n;$("daftar").appendChild(li)});
+}
+function tampilRoster(){
+  $("roster").innerHTML="";
+  $("rosterList").innerHTML="";
+  roster.forEach(n=>{
+    const li=document.createElement("li");
+    const sp=document.createElement("span");sp.textContent=n;
+    const b=document.createElement("button");b.textContent="Hapus";b.className="n";
+    b.onclick=()=>simpanRoster(roster.filter(x=>x!==n),"hapus dari daftar: "+n);
+    li.append(sp,b);$("roster").appendChild(li);
+    const o=document.createElement("option");o.value=n;$("rosterList").appendChild(o);
+  });
+}
+async function bacaBerkas(nama){
+  const r=await fetch(API(nama)+"?t="+Date.now(),{headers:{Accept:"application/vnd.github+json"}});
+  if(r.status===404) return {sha:null,baris:[]};
+  const j=await r.json();
+  return {sha:j.sha, baris:atob(j.content.replace(/\n/g,"")).split("\n").map(s=>s.trim()).filter(Boolean)};
+}
 async function baca(){
-  try{const r=await fetch(API+"?t="+Date.now(),{headers:{Accept:"application/vnd.github+json"}});
-    const j=await r.json();sha=j.sha;
-    isi=atob(j.content.replace(/\n/g,"")).split("\n").map(s=>s.trim()).filter(Boolean);tampil();}
-  catch(e){$("st").textContent="tidak terbaca"}}
-async function simpan(baru,pesan){
-  const t=$("tk").value.trim();if(!t){$("pesan").textContent="Isi token dulu.";return}
+  try{const a=await bacaBerkas("status.txt");shaStatus=a.sha;isi=a.baris;tampilStatus();}
+  catch(e){$("st").textContent="tidak terbaca"}
+  try{const b=await bacaBerkas("pengguna.txt");shaRoster=b.sha;roster=b.baris;tampilRoster();}catch(e){}
+}
+async function tulis(nama,shaLama,teksArr,pesan){
+  const t=$("tk").value.trim();if(!t){$("pesan").textContent="Isi token dulu.";return false}
   localStorage.setItem("tk",t);$("pesan").textContent="Mengirim...";
-  await baca();
-  const teks=baru.join("\n")+"\n";
-  const r=await fetch(API,{method:"PUT",headers:{Authorization:"Bearer "+t,Accept:"application/vnd.github+json"},
-    body:JSON.stringify({message:pesan,content:btoa(unescape(encodeURIComponent(teks))),sha})});
+  const body={message:pesan,content:btoa(unescape(encodeURIComponent(teksArr.join("\n")+"\n")))};
+  if(shaLama) body.sha=shaLama;
+  const r=await fetch(API(nama),{method:"PUT",headers:{Authorization:"Bearer "+t,Accept:"application/vnd.github+json"},body:JSON.stringify(body)});
   $("pesan").textContent=r.ok?"Berhasil.":"Gagal ("+r.status+"). Periksa token.";
-  await baca()}
-$("matiAll").onclick=()=>simpan([ "mati", ...isi.slice(1)],"semua mati");
-$("aktifAll").onclick=()=>simpan([ "aktif", ...isi.slice(1)],"semua aktif");
+  return r.ok;
+}
+async function simpanStatus(baru,pesan){ if(await tulis("status.txt",shaStatus,baru,pesan)) await baca(); }
+async function simpanRoster(baru,pesan){ if(await tulis("pengguna.txt",shaRoster,baru,pesan)) await baca(); }
+
+$("matiAll").onclick=()=>simpanStatus(["mati", ...isi.slice(1)],"semua mati");
+$("aktifAll").onclick=()=>simpanStatus(["aktif", ...isi.slice(1)],"semua aktif");
 $("matiNm").onclick=()=>{const n=$("nm").value.trim();if(!n)return;const base=isi.length?isi:["aktif"];
-  if(!base.slice(1).some(x=>x.toLowerCase()===n.toLowerCase())) base.push(n);simpan(base,"mati: "+n)};
+  if(!base.slice(1).some(x=>x.toLowerCase()===n.toLowerCase())) base.push(n);simpanStatus(base,"mati: "+n)};
 $("aktifNm").onclick=()=>{const n=$("nm").value.trim().toLowerCase();const base=isi.length?isi:["aktif"];
-  simpan([base[0],...base.slice(1).filter(x=>x.toLowerCase()!==n)],"aktif: "+n)};
+  simpanStatus([base[0],...base.slice(1).filter(x=>x.toLowerCase()!==n)],"aktif: "+n)};
+$("rTambah").onclick=()=>{const n=$("rnm").value.trim();if(!n)return;
+  if(!roster.some(x=>x.toLowerCase()===n.toLowerCase())) simpanRoster([...roster,n],"tambah pengguna: "+n);
+  $("rnm").value="";};
+
 baca();
 </script></body></html>
