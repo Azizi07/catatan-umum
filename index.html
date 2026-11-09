@@ -4,16 +4,21 @@
 <style>
 body{font-family:system-ui,sans-serif;margin:0;padding:24px;background:#f6f6f6;color:#222}
 .k{max-width:420px;margin:0 auto;background:#fff;border-radius:16px;padding:20px;box-shadow:0 1px 6px #0002}
-button{width:100%;padding:14px;margin-top:10px;font-size:16px;border:0;border-radius:12px;color:#fff}
-#mati{background:#c62828}#aktif{background:#1b7f4b}
+button{width:100%;padding:12px;margin-top:8px;font-size:15px;border:0;border-radius:12px;color:#fff}
+.m{background:#c62828}.a{background:#1b7f4b}.n{background:#555}
 input{width:100%;box-sizing:border-box;padding:10px;font-size:14px;margin-top:6px}
 .s{font-size:22px;font-weight:700;margin:8px 0}
-small{color:#666}
+small{color:#666}ul{padding-left:18px}
 </style></head><body><div class="k">
-<small>Status sekarang</small><div class="s" id="st">memuat...</div>
-<button id="mati">Matikan (samarkan aplikasi)</button>
-<button id="aktif">Nyalakan kembali</button>
-<p><small>Token GitHub (hanya akses repo ini, izin Contents: Read and write). Disimpan di browser ini saja.</small>
+<small>Status semua perangkat</small><div class="s" id="st">memuat...</div>
+<small>Perangkat yang dimatikan</small><ul id="daftar"></ul>
+<button class="m" id="matiAll">Matikan semua</button>
+<button class="a" id="aktifAll">Nyalakan semua</button>
+<p><small>Nama perangkat (sama dengan nama akun di aplikasi)</small></p>
+<input id="nm" placeholder="Nama akun">
+<button class="m" id="matiNm">Matikan perangkat ini</button>
+<button class="n" id="aktifNm">Nyalakan perangkat ini</button>
+<p><small>Token GitHub (akses repo ini, Contents: Read and write). Disimpan di browser ini saja.</small>
 <input id="tk" type="password" placeholder="github_pat_..."></p>
 <div id="pesan"></div>
 </div>
@@ -21,16 +26,28 @@ small{color:#666}
 const R="Azizi07/catatan-umum",F="status.txt",API=`https://api.github.com/repos/${R}/contents/${F}`;
 const $=i=>document.getElementById(i);
 $("tk").value=localStorage.getItem("tk")||"";
+let sha="",isi=[];
+function tampil(){const g=isi[0]||"?";$("st").textContent=g.toUpperCase();
+  $("daftar").innerHTML="";isi.slice(1).forEach(n=>{const li=document.createElement("li");li.textContent=n;$("daftar").appendChild(li)});}
 async function baca(){
   try{const r=await fetch(API+"?t="+Date.now(),{headers:{Accept:"application/vnd.github+json"}});
-  const j=await r.json();$("st").textContent=atob(j.content.replace(/\n/g,"")).trim().toUpperCase();return j.sha}
+    const j=await r.json();sha=j.sha;
+    isi=atob(j.content.replace(/\\n/g,"")).split("\\n").map(s=>s.trim()).filter(Boolean);tampil();}
   catch(e){$("st").textContent="tidak terbaca"}}
-async function ubah(v){
+async function simpan(baru,pesan){
   const t=$("tk").value.trim();if(!t){$("pesan").textContent="Isi token dulu.";return}
   localStorage.setItem("tk",t);$("pesan").textContent="Mengirim...";
-  const sha=await baca();
+  await baca();
+  const teks=baru.join("\\n")+"\\n";
   const r=await fetch(API,{method:"PUT",headers:{Authorization:"Bearer "+t,Accept:"application/vnd.github+json"},
-    body:JSON.stringify({message:"status "+v,content:btoa(v),sha})});
-  $("pesan").textContent=r.ok?"Berhasil: "+v:"Gagal ("+r.status+"). Periksa token.";baca()}
-$("mati").onclick=()=>ubah("mati");$("aktif").onclick=()=>ubah("aktif");baca();
+    body:JSON.stringify({message:pesan,content:btoa(unescape(encodeURIComponent(teks))),sha})});
+  $("pesan").textContent=r.ok?"Berhasil.":"Gagal ("+r.status+"). Periksa token.";
+  await baca()}
+$("matiAll").onclick=()=>simpan([ "mati", ...isi.slice(1)],"semua mati");
+$("aktifAll").onclick=()=>simpan([ "aktif", ...isi.slice(1)],"semua aktif");
+$("matiNm").onclick=()=>{const n=$("nm").value.trim();if(!n)return;const base=isi.length?isi:["aktif"];
+  if(!base.slice(1).some(x=>x.toLowerCase()===n.toLowerCase())) base.push(n);simpan(base,"mati: "+n)};
+$("aktifNm").onclick=()=>{const n=$("nm").value.trim().toLowerCase();const base=isi.length?isi:["aktif"];
+  simpan([base[0],...base.slice(1).filter(x=>x.toLowerCase()!==n)],"aktif: "+n)};
+baca();
 </script></body></html>
